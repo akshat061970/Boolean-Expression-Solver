@@ -75,7 +75,6 @@ if enter_clicked:
             processed_expr = re.sub(r"([A-Z])\s*'", r"~\1", raw_expr.upper())
             
             # 2. MAGIC STEP: Automatically insert '*' for implicit ANDs
-            # Looks for a letter or ')' on the left, and a letter, '(', or '~' on the right
             processed_expr = re.sub(r"([A-Z)])\s*(?=[A-Z(~])", r"\1 * ", processed_expr)
             
             # 3. Prepare the remaining string for SymPy
@@ -84,15 +83,24 @@ if enter_clicked:
             # 4. Force SymPy to treat A, B, C, D, E, I etc. as standard variables
             local_dict = {var: sympy.Symbol(var) for var in variables}
             
-            # 5. Convert the string to a SymPy expression safely using our local_dict
+            # 5. Convert the string to a SymPy expression safely 
             parsed_expr = sympy.sympify(processed_expr, locals=local_dict)
             
-            # 6. Simplify the logic using 'dnf' (Disjunctive Normal Form)
-            simplified = simplify_logic(parsed_expr, form='dnf')
+            # 6. Simplify the logic (Removed form='dnf' to force maximum simplification)
+            simplified = simplify_logic(parsed_expr)
             
             # 7. Convert back to user-friendly string format
-            final_output = str(simplified).replace('&', '*').replace('|', '+')
-            final_output = re.sub(r"~([A-Z])", r"\1'", final_output)
+            final_output = str(simplified)
+            
+            # Catch absolute truths and falsehoods (A * A' = 0, A + A' = 1)
+            if final_output == "False":
+                final_output = "0 (Always False)"
+            elif final_output == "True":
+                final_output = "1 (Always True)"
+            else:
+                # Format standard expressions normally
+                final_output = final_output.replace('&', '*').replace('|', '+')
+                final_output = re.sub(r"~([A-Z])", r"\1'", final_output)
             
             st.success("### Simplified Expression:")
             st.code(final_output, language="text")
